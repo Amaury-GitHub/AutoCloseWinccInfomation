@@ -375,15 +375,15 @@ var IcoData []byte = []byte{
 }
 
 func CloseWindows() {
-	//定义要查找的窗口名称
+	// 定义要查找的窗口名称
 	WindowsName, _ := syscall.UTF16PtrFromString("WinCC Information")
-	//查找窗口句柄
+	// 查找窗口句柄
 	hwnd, _, _ := syscall.MustLoadDLL("user32.dll").MustFindProc("FindWindowW").Call(
 		uintptr(0),
 		uintptr(unsafe.Pointer(WindowsName)),
 	)
 	if hwnd != 0 {
-		//为查找到的窗口句柄发送确定按钮的指令
+		// 为查找到的窗口句柄发送确定按钮的指令
 		syscall.MustLoadDLL("user32.dll").MustFindProc("SendMessageW").Call(
 			hwnd,
 			uintptr(0x0111),
@@ -391,15 +391,15 @@ func CloseWindows() {
 			uintptr(0),
 		)
 	}
-	//定义要查找的窗口名称
+	// 定义要查找的窗口名称
 	WindowsName, _ = syscall.UTF16PtrFromString("WinCC 信息")
-	//查找窗口句柄
+	// 查找窗口句柄
 	hwnd, _, _ = syscall.MustLoadDLL("user32.dll").MustFindProc("FindWindowW").Call(
 		uintptr(0),
 		uintptr(unsafe.Pointer(WindowsName)),
 	)
 	if hwnd != 0 {
-		//为查找到的窗口句柄发送确定按钮的指令
+		// 为查找到的窗口句柄发送确定按钮的指令
 		syscall.MustLoadDLL("user32.dll").MustFindProc("SendMessageW").Call(
 			hwnd,
 			uintptr(0x0111),
@@ -407,47 +407,69 @@ func CloseWindows() {
 			uintptr(0),
 		)
 	}
+	// 查找WinCC PdlRt进程是否存在
+	Command := exec.Command("powershell", "Get-Process PdlRt")
+	Command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	_, err := Command.Output()
+	if err == nil {
+		// 查找WinCC gscrt进程是否存在
+		Command := exec.Command("powershell", "Get-Process gscrt")
+		Command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		_, err := Command.Output()
+		if err != nil {
+			Command := exec.Command("cmd", "/c", "start", "", "C:\\Program Files (x86)\\Siemens\\Automation\\SCADA-RT_V11\\WinCC\\bin\\gscrt.exe")
+			Command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+			Command.Run()
+		}
+	}
 }
 func CloseWindowsLoop() {
-	//查找并关闭窗口
+	// 查找并关闭窗口
 	go CloseWindows()
-	//1s循环
-	time.AfterFunc(1*time.Second, CloseWindowsLoop)
+	// 1s循环
+	time.AfterFunc(1000*time.Millisecond, CloseWindowsLoop)
 }
 func init() {
-	//阻止多次启动
-	Mutex, _ := syscall.UTF16PtrFromString("AutoCloseWinccInfomation")
+	// 阻止多次启动
+	Mutex, _ := syscall.UTF16PtrFromString("AutoClose WinCC Infomation")
 	_, _, err := syscall.NewLazyDLL("kernel32.dll").NewProc("CreateMutexW").Call(0, 0, uintptr(unsafe.Pointer(Mutex)))
 	if int(err.(syscall.Errno)) != 0 {
 		os.Exit(1)
 	}
-	//创建ICO
+	// 创建ICO
 	os.WriteFile("icon.ico", IcoData, 0644)
 }
 func main() {
-	//定义托盘图标文字
+	// 定义托盘图标文字
 	MainWindow, _ = walk.NewMainWindow()
 	Icon, _ = walk.Resources.Icon("icon.ico")
-	//删除图标
+	// 删除图标
 	Command := exec.Command("cmd", "/c", "del /f /q icon.ico")
 	Command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	Command.Run()
+	Command.Start()
 	NotifyIcon, _ = walk.NewNotifyIcon(MainWindow)
 	defer NotifyIcon.Dispose()
 	NotifyIcon.SetIcon(Icon)
-	NotifyIcon.SetToolTip("AutoCloseWinccInfomation")
+	NotifyIcon.SetToolTip("AutoClose WinCC Infomation")
 	NotifyIcon.SetVisible(true)
-	//定义右键菜单
+	// 定义右键菜单元素
+	Sign := walk.NewAction()
+	Sign.SetText("Designed by Amaury")
+	blank1 := walk.NewAction()
+	blank1.SetText("-")
 	Exit := walk.NewAction()
 	Exit.SetText("Exit")
+	// 定义右键菜单
+	NotifyIcon.ContextMenu().Actions().Add(Sign)
+	NotifyIcon.ContextMenu().Actions().Add(blank1)
 	NotifyIcon.ContextMenu().Actions().Add(Exit)
-	//Exit
+	// Exit
 	Exit.Triggered().Attach(func() {
-		//退出主程序
+		// 退出主程序
 		walk.App().Exit(0)
 	})
-	//循环查找窗口并关闭
+	// 循环查找并关闭窗口
 	go CloseWindowsLoop()
-	//主程序运行
+	// 主程序运行
 	MainWindow.Run()
 }
