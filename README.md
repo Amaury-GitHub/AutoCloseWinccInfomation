@@ -1,4 +1,4 @@
-# AutoCloseWinccInfomation
+# AutoClose WinCC Info & TaskDaemon
 自动关闭 "Wincc 信息" 弹窗</br>
 
 当你没有授权,没有狗,Wincc会定期弹窗</br>
