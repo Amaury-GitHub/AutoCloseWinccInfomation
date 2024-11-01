@@ -374,7 +374,7 @@ var IcoData []byte = []byte{
 	0x00, 0x00,
 }
 
-func CloseWindows() {
+func Task() {
 	// 定义要查找的窗口名称
 	WindowsName, _ := syscall.UTF16PtrFromString("WinCC Information")
 	// 查找窗口句柄
@@ -411,27 +411,29 @@ func CloseWindows() {
 	Command := exec.Command("powershell", "Get-Process PdlRt")
 	Command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	_, err := Command.Output()
+	// 进程存在
 	if err == nil {
 		// 查找WinCC gscrt进程是否存在
-		Command := exec.Command("powershell", "Get-Process gscrt")
+		Command = exec.Command("powershell", "Get-Process gscrt")
 		Command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		_, err := Command.Output()
+		_, err = Command.Output()
+		// 进程不存在
 		if err != nil {
-			Command := exec.Command("cmd", "/c", "start", "", "C:\\Program Files (x86)\\Siemens\\Automation\\SCADA-RT_V11\\WinCC\\bin\\gscrt.exe")
+			Command = exec.Command("cmd", "/c", "start", "", "C:\\Program Files (x86)\\Siemens\\Automation\\SCADA-RT_V11\\WinCC\\bin\\gscrt.exe")
 			Command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 			Command.Run()
 		}
 	}
 }
-func CloseWindowsLoop() {
-	// 查找并关闭窗口
-	go CloseWindows()
+func TaskLoop() {
+	// 启动任务
+	go Task()
 	// 1s循环
-	time.AfterFunc(1000*time.Millisecond, CloseWindowsLoop)
+	time.AfterFunc(1000*time.Millisecond, TaskLoop)
 }
 func init() {
 	// 阻止多次启动
-	Mutex, _ := syscall.UTF16PtrFromString("AutoClose WinCC Infomation")
+	Mutex, _ := syscall.UTF16PtrFromString("WinCC_Assistant")
 	_, _, err := syscall.NewLazyDLL("kernel32.dll").NewProc("CreateMutexW").Call(0, 0, uintptr(unsafe.Pointer(Mutex)))
 	if int(err.(syscall.Errno)) != 0 {
 		os.Exit(1)
@@ -450,7 +452,7 @@ func main() {
 	NotifyIcon, _ = walk.NewNotifyIcon(MainWindow)
 	defer NotifyIcon.Dispose()
 	NotifyIcon.SetIcon(Icon)
-	NotifyIcon.SetToolTip("AutoClose WinCC Infomation")
+	NotifyIcon.SetToolTip("WinCC_Assistant")
 	NotifyIcon.SetVisible(true)
 	// 定义右键菜单元素
 	Sign := walk.NewAction()
@@ -468,8 +470,8 @@ func main() {
 		// 退出主程序
 		walk.App().Exit(0)
 	})
-	// 循环查找并关闭窗口
-	go CloseWindowsLoop()
+	// 启动循环任务
+	go TaskLoop()
 	// 主程序运行
 	MainWindow.Run()
 }
